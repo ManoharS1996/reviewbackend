@@ -1,29 +1,10 @@
-const mongoose = require('mongoose');
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middleware/auth');
 
-const ScheduleSchema = new mongoose.Schema({
-  appName: {
-    type: String,
-    required: true
-  },
-  deploymentDate: {
-    type: Date,
-    required: true
-  },
-  timings: {
-    type: String,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['Scheduled', 'In Progress', 'Completed'],
-    default: 'Scheduled'
-  },
-  notes: {
-    type: String,
-    default: ''
-  }
-}, {
-  timestamps: true
+// Example protected POST route
+router.post('/', protect, (req, res) => {
+  res.json({ success: true, data: `Schedule saved for user ${req.user.email}` });
 });
 
-module.exports = mongoose.model('Schedule', ScheduleSchema);
+module.exports = router;

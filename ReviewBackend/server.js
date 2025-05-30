@@ -1,78 +1,54 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
 const cors = require('cors');
+const morgan = require('morgan');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const scheduleRoutes = require('./routes/schedules'); // example protected route
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+app.use(morgan('dev'));
 
-// MongoDB Connection with enhanced logging
-const connectDB = async () => {
-  try {
-    console.log('⌛ Attempting to connect to MongoDB...');
-    
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-    });
-    
-    console.log('✅ MongoDB connected successfully');
-    console.log(`📊 Database name: ${mongoose.connection.name}`);
-    console.log(`🌐 Host: ${mongoose.connection.host}`);
-    
-    mongoose.connection.on('connected', () => {
-      console.log('📌 Mongoose default connection open');
-    });
-
-    mongoose.connection.on('error', (err) => {
-      console.error(`❌ Mongoose default connection error: ${err}`);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('⚠️ Mongoose default connection disconnected');
-    });
-
-    process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      console.log('🛑 Mongoose default connection disconnected through app termination');
-      process.exit(0);
-    });
-
-  } catch (err) {
-    console.error('❌ MongoDB connection error:', err.message);
-    console.log('🔌 Retrying connection in 5 seconds...');
-    setTimeout(connectDB, 5000);
-  }
-};
-
-// Initialize DB connection
-connectDB();
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('✅ MongoDB connected');
+}).catch(err => {
+  console.error('❌ MongoDB connection error:', err.message);
+  process.exit(1);
+});
 
 // Routes
-app.use('/api/reviews', require('./routes/reviews'));
-app.use('/api/schedules', require('./routes/schedules'));
-app.use('/api/updates', require('./routes/updates'));
+app.use('/api/auth', authRoutes);
+app.use('/api/schedules', scheduleRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState;
-  const status = dbStatus === 1 ? 'healthy' : 'unhealthy';
-  
-  res.json({
-    status,
-    database: dbStatus === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date()
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Endpoint not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('🚨 Error:', err.stack);
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    error: err.message || 'Internal Server Error'
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Access the server at http://localhost:${PORT}`);
 });
