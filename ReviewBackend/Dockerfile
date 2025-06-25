@@ -13,4 +13,4 @@ COPY . .
 
 # Start app
 EXPOSE 5000
-CMD ["nodemon", "server.js"]
+CMD ["node", "server.js"]
