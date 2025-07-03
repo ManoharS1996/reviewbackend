@@ -6,9 +6,6 @@ const { protect, authorize } = require('../middleware/auth');
 const { sendDeploymentNotification } = require('../utils/email');
 const ErrorResponse = require('../utils/errorResponse');
 
-// @route    POST /api/schedules
-// @desc     Create a schedule
-// @access   Private (Admin only)
 router.post('/', [
   protect,
   authorize('admin'),
@@ -30,14 +27,10 @@ router.post('/', [
       scheduledBy: req.user.id
     });
 
-    // Save the schedule
     const savedSchedule = await schedule.save();
 
-    // Notify developers
     try {
       const sentTo = await sendDeploymentNotification(savedSchedule, req.body.developers);
-      
-      // Update schedule with notification details
       savedSchedule.developersNotified = true;
       savedSchedule.notificationDetails = {
         sentAt: new Date(),
@@ -46,83 +39,47 @@ router.post('/', [
       await savedSchedule.save();
     } catch (emailError) {
       console.error('Email notification failed:', emailError);
-      // Continue even if email fails
     }
 
-    res.status(201).json({
-      success: true,
-      data: savedSchedule
-    });
+    res.status(201).json({ success: true, data: savedSchedule });
   } catch (err) {
     next(err);
   }
 });
 
-// @route    GET /api/schedules
-// @desc     Get all schedules
-// @access   Private
 router.get('/', protect, async (req, res, next) => {
   try {
     const schedules = await Schedule.find().sort({ deploymentDate: -1 });
-    res.status(200).json({
-      success: true,
-      count: schedules.length,
-      data: schedules
-    });
+    res.status(200).json({ success: true, count: schedules.length, data: schedules });
   } catch (err) {
     next(err);
   }
 });
 
-// @route    PATCH /api/schedules/:id
-// @desc     Update a schedule
-// @access   Private (Admin only)
-router.patch('/:id', [
-  protect,
-  authorize('admin')
-], async (req, res, next) => {
+router.patch('/:id', [protect, authorize('admin')], async (req, res, next) => {
   try {
     const schedule = await Schedule.findById(req.params.id);
-    if (!schedule) {
-      return next(new ErrorResponse('Schedule not found', 404));
-    }
+    if (!schedule) return next(new ErrorResponse('Schedule not found', 404));
 
-    // Update fields
     const fields = ['appName', 'deploymentDate', 'timings', 'status', 'notes', 'developers'];
     fields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        schedule[field] = req.body[field];
-      }
+      if (req.body[field] !== undefined) schedule[field] = req.body[field];
     });
 
     const updatedSchedule = await schedule.save();
-    res.status(200).json({
-      success: true,
-      data: updatedSchedule
-    });
+    res.status(200).json({ success: true, data: updatedSchedule });
   } catch (err) {
     next(err);
   }
 });
 
-// @route    DELETE /api/schedules/:id
-// @desc     Delete a schedule
-// @access   Private (Admin only)
-router.delete('/:id', [
-  protect,
-  authorize('admin')
-], async (req, res, next) => {
+router.delete('/:id', [protect, authorize('admin')], async (req, res, next) => {
   try {
     const schedule = await Schedule.findById(req.params.id);
-    if (!schedule) {
-      return next(new ErrorResponse('Schedule not found', 404));
-    }
+    if (!schedule) return next(new ErrorResponse('Schedule not found', 404));
 
     await schedule.remove();
-    res.status(200).json({
-      success: true,
-      data: {}
-    });
+    res.status(200).json({ success: true, data: {} });
   } catch (err) {
     next(err);
   }

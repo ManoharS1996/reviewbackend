@@ -4,12 +4,15 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 
-// Import routes
+// Route imports
 const authRoutes = require('./routes/auth');
-const scheduleRoutes = require('./routes/schedules'); // example protected route
+const scheduleRoutes = require('./routes/schedules');
+const reviewRoutes = require('./routes/reviews');
+const updateRoutes = require('./routes/updates');
 
 const app = express();
 
+// Middleware
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -18,7 +21,7 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('dev'));
 
-// Connect to MongoDB
+// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -32,6 +35,8 @@ mongoose.connect(process.env.MONGODB_URI, {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/updates', updateRoutes);
 
 // 404 handler
 app.use((req, res) => {

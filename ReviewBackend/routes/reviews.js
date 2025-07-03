@@ -2,15 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
 const Review = require('../models/Review');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const ErrorResponse = require('../utils/errorResponse');
 
-// @route    GET /api/reviews
-// @desc     Get all reviews
-// @access   Private
 router.get('/', protect, async (req, res, next) => {
   try {
-    const reviews = await Review.find().populate('reviewedBy', 'email').sort({ createdAt: -1 });
+    const reviews = await Review.find({ reviewedBy: req.user.id })
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       count: reviews.length,
@@ -21,9 +20,6 @@ router.get('/', protect, async (req, res, next) => {
   }
 });
 
-// @route    POST /api/reviews
-// @desc     Create a review
-// @access   Private
 router.post('/', [
   protect,
   [
@@ -53,6 +49,54 @@ router.post('/', [
   }
 });
 
-// Other routes (PATCH, DELETE) similarly updated with auth
+router.patch('/:id', protect, async (req, res, next) => {
+  try {
+    let review = await Review.findById(req.params.id);
+    
+    if (!review) {
+      return next(new ErrorResponse('Review not found', 404));
+    }
+
+    // Make sure user is review owner
+    if (review.reviewedBy.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to update this review', 401));
+    }
+
+    review = await Review.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: review
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', protect, async (req, res, next) => {
+  try {
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return next(new ErrorResponse('Review not found', 404));
+    }
+
+    // Make sure user is review owner
+    if (review.reviewedBy.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to delete this review', 401));
+    }
+
+    await review.remove();
+    res.status(200).json({
+      success: true,
+      data: {}
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
