@@ -59,7 +59,7 @@ const sendDeploymentNotification = async (schedule, developers) => {
               <p style="color: #666; font-size: 0.9em;">This is an automated notification. Please do not reply to this email.</p>
             </div>
           </div>
-          <div style="background-color: #f5f5f5; padding: 10px; text-align: center; font-size: 0.8em; color: #666;">
+          <div style="background-color:rgb(150, 127, 127); padding: 10px; text-align: center; font-size: 0.8em; color: #666;">
             Deployment Management System
           </div>
         </div>
