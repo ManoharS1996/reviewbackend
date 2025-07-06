@@ -16,15 +16,9 @@ const UpdateSchema = new mongoose.Schema({
   endDate: {
     type: Date,
     required: [true, 'Please add end date']
-  },
-  updatedBy: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'User'
   }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
 module.exports = mongoose.model('Update', UpdateSchema);

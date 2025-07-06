@@ -1,43 +1,110 @@
-const jwt = require('jsonwebtoken');
-const ErrorResponse = require('../utils/errorResponse');
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const ErrorResponse = require('../utils/errorResponse');
 
-exports.protect = async (req, res, next) => {
-  let token;
+// Register user
+router.post('/register', async (req, res, next) => {
+  const { name, email, password, role } = req.body;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    token = req.headers.authorization.split(' ')[1];
+  try {
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role
+    });
+
+    // Set user session
+    req.session.userId = user._id;
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    next(err);
   }
+});
 
-  if (!token) {
-    return next(new ErrorResponse('Not authorized to access this route', 401));
+// Login user
+router.post('/login', async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return next(new ErrorResponse('Please provide an email and password', 400));
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id);
-    if (!req.user) {
-      return next(new ErrorResponse('Not authorized to access this route', 401));
-    }
-    next();
-  } catch (err) {
-    return next(new ErrorResponse('Not authorized to access this route', 401));
-  }
-};
+    const user = await User.findOne({ email }).select('+password');
 
-exports.authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return next(
-        new ErrorResponse(
-          `User role ${req.user.role} is not authorized to access this route`,
-          403
-        )
-      );
+    if (!user) {
+      return next(new ErrorResponse('Invalid credentials', 401));
     }
-    next();
-  };
-};
+
+    const isMatch = await user.matchPassword(password);
+
+    if (!isMatch) {
+      return next(new ErrorResponse('Invalid credentials', 401));
+    }
+
+    // Set user session
+    req.session.userId = user._id;
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get current logged in user
+router.get('/me', async (req, res, next) => {
+  try {
+    if (!req.session.userId) {
+      return next(new ErrorResponse('Not authenticated', 401));
+    }
+
+    const user = await User.findById(req.session.userId);
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Logout user
+router.post('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: 'Could not log out, please try again'
+      });
+    }
+    res.clearCookie('connect.sid');
+    res.status(200).json({ success: true, data: {} });
+  });
+});
+
+module.exports = router;

@@ -4,20 +4,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 
-// Route imports
-const authRoutes = require('./routes/auth');
-const scheduleRoutes = require('./routes/schedules');
-const reviewRoutes = require('./routes/reviews');
-const updateRoutes = require('./routes/updates');
-
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -32,8 +22,12 @@ mongoose.connect(process.env.MONGODB_URI, {
   process.exit(1);
 });
 
+// Route imports
+const scheduleRoutes = require('./routes/schedules');
+const reviewRoutes = require('./routes/reviews');
+const updateRoutes = require('./routes/updates');
+
 // Routes
-app.use('/api/auth', authRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/updates', updateRoutes);

@@ -2,60 +2,51 @@ const express = require('express');
 const router = express.Router();
 const Update = require('../models/Update');
 
-// GET all updates
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
-    const updates = await Update.find().sort({ startDate: -1 });
-    res.json(updates);
+    const updates = await Update.find().sort({ updatedAt: -1 });
+    res.status(200).json({ success: true, count: updates.length, data: updates });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 });
 
-// POST create an update
-router.post('/', async (req, res) => {
-  const { appName, featuresAdded, startDate, endDate } = req.body;
-
-  const update = new Update({
-    appName,
-    featuresAdded,
-    startDate,
-    endDate
-  });
-
+router.post('/', async (req, res, next) => {
   try {
-    const newUpdate = await update.save();
-    res.status(201).json(newUpdate);
+    const update = new Update(req.body);
+    const savedUpdate = await update.save();
+    res.status(201).json({ success: true, data: savedUpdate });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 });
 
-// PATCH update an update
-router.patch('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const update = await Update.findById(req.params.id);
-    if (!update) return res.status(404).json({ message: 'Update not found' });
+    if (!update) return next(new Error('Update not found'));
 
-    if (req.body.appName !== undefined) update.appName = req.body.appName;
-    if (req.body.featuresAdded !== undefined) update.featuresAdded = req.body.featuresAdded;
-    if (req.body.startDate !== undefined) update.startDate = req.body.startDate;
-    if (req.body.endDate !== undefined) update.endDate = req.body.endDate;
+    const fields = ['title', 'description', 'status', 'priority'];
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    });
 
     const updatedUpdate = await update.save();
-    res.json(updatedUpdate);
+    res.status(200).json({ success: true, data: updatedUpdate });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 });
 
-// DELETE an update
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    await Update.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Update deleted' });
+    const update = await Update.findById(req.params.id);
+    if (!update) return next(new Error('Update not found'));
+
+    await update.deleteOne(); // ✅ FIXED deprecated .remove()
+    res.status(200).json({ success: true, data: {} });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 });
 
