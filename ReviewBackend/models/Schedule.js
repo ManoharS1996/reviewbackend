@@ -32,6 +32,9 @@ const ScheduleSchema = new mongoose.Schema({
   notificationDetails: {
     sentAt: Date,
     recipients: [String]
+  },
+  failureReason: {
+    type: String
   }
 }, {
   timestamps: true
