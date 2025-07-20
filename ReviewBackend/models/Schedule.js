@@ -20,7 +20,13 @@ const ScheduleSchema = new mongoose.Schema({
   },
   developers: {
     type: [String],
-    required: [true, 'Please add at least one developer']
+    required: [true, 'Please add at least one developer'],
+    validate: {
+      validator: function(v) {
+        return v.length > 0;
+      },
+      message: 'Please add at least one developer'
+    }
   },
   notes: {
     type: String
@@ -31,7 +37,8 @@ const ScheduleSchema = new mongoose.Schema({
   },
   notificationDetails: {
     sentAt: Date,
-    recipients: [String]
+    recipients: [String],
+    status: String
   },
   failureReason: {
     type: String

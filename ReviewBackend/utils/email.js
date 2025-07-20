@@ -1,23 +1,36 @@
 const nodemailer = require('nodemailer');
+const ErrorResponse = require('./errorResponse');
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: false,
+  secure: process.env.SMTP_PORT === '465',
   auth: {
     user: process.env.SMTP_EMAIL,
     pass: process.env.SMTP_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Verify connection configuration
+transporter.verify((error) => {
+  if (error) {
+    console.error('SMTP connection error:', error);
+  } else {
+    console.log('✅ SMTP server is ready to take our messages');
   }
 });
 
 const getStatusColor = (status) => {
-  switch (status) {
-    case 'Scheduled': return '#1976d2';
-    case 'In Progress': return '#ff9800';
-    case 'Completed': return '#4caf50';
-    case 'Failed': return '#f44336';
-    default: return '#9e9e9e';
-  }
+  const colors = {
+    'Scheduled': '#1976d2',
+    'In Progress': '#ff9800',
+    'Completed': '#4caf50',
+    'Failed': '#f44336'
+  };
+  return colors[status] || '#9e9e9e';
 };
 
 const sendStatusNotification = async (schedule, newStatus) => {
@@ -37,7 +50,7 @@ const sendStatusNotification = async (schedule, newStatus) => {
     const mailOptions = {
       from: `Deployment Manager <${process.env.FROM_EMAIL}>`,
       to: schedule.developers.join(','),
-      subject: `[Deployment Update] ${schedule.appName} status changed to ${newStatus}`,
+      subject: `[Deployment Update] ${schedule.appName} - Status: ${newStatus}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
           <div style="background-color: ${statusColor}; color: white; padding: 20px; text-align: center;">
@@ -72,20 +85,22 @@ const sendStatusNotification = async (schedule, newStatus) => {
             ` : ''}
           </div>
           <div style="background-color: #f5f5f5; padding: 10px; text-align: center; font-size: 0.8em; color: #666;">
-            Deployment Management System
+            Deployment Management System - ${new Date().getFullYear()}
           </div>
         </div>
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    return schedule.developers;
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Message sent: %s', info.messageId);
+    return info;
   } catch (err) {
     console.error('Email sending error:', err);
-    throw new Error('Failed to send status notifications');
+    throw new ErrorResponse('Failed to send status notifications', 500);
   }
 };
 
 module.exports = {
-  sendStatusNotification
+  sendStatusNotification,
+  transporter
 };
