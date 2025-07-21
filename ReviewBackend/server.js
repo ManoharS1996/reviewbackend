@@ -5,27 +5,31 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const cookieParser = require('cookie-parser');
 
 // App
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan('dev'));
 
 // Nodemailer Transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
-  secure: false, // false for 587, true for 465
+  secure: false,
   auth: {
     user: process.env.SMTP_EMAIL,
     pass: process.env.SMTP_PASSWORD
   }
 });
 
-// Verify Email Connection
 transporter.verify((error, success) => {
   if (error) {
     console.error('❌ SMTP connection error:', error);
@@ -50,11 +54,9 @@ connectDB();
 mongoose.connection.on('connected', () => {
   console.log('Mongoose connected to DB');
 });
-
 mongoose.connection.on('error', (err) => {
   console.log('Mongoose connection error:', err);
 });
-
 mongoose.connection.on('disconnected', () => {
   console.log('Mongoose disconnected from DB');
 });
@@ -63,10 +65,12 @@ mongoose.connection.on('disconnected', () => {
 const scheduleRoutes = require('./routes/schedules');
 const reviewRoutes = require('./routes/reviews');
 const updateRoutes = require('./routes/updates');
+const authRoutes = require('./routes/auth');
 
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/updates', updateRoutes);
+app.use('/api/auth', authRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -79,7 +83,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Static Files for Production
+// Static Files (for Production)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
   app.get('*', (req, res) => {
