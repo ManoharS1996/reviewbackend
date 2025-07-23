@@ -1,4 +1,3 @@
-// controllers/auth.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -13,14 +12,14 @@ const generateToken = (id) => {
 // @desc    Register new user
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { fullName, username, password } = req.body;
 
   try {
-    if (!name || !email || !password) {
+    if (!fullName || !username || !password) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ username });
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
@@ -28,8 +27,8 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      fullName,
+      username,
       password: hashedPassword
     });
 
@@ -46,8 +45,8 @@ exports.register = async (req, res) => {
         success: true,
         user: {
           id: user._id,
-          name: user.name,
-          email: user.email
+          fullName: user.fullName,
+          username: user.username
         },
         token
       });
@@ -60,14 +59,14 @@ exports.register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
 
   try {
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'Username and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username }).select('+password');
     if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
@@ -89,8 +88,8 @@ exports.login = async (req, res) => {
         success: true,
         user: {
           id: user._id,
-          name: user.name,
-          email: user.email
+          fullName: user.fullName,
+          username: user.username
         },
         token
       });
