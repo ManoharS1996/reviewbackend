@@ -1,10 +1,11 @@
 const nodemailer = require('nodemailer');
 const ErrorResponse = require('./errorResponse');
 
+// Create transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_PORT === '465',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT, 10) || 587,
+  secure: process.env.SMTP_PORT === '465', // true for 465, false for others
   auth: {
     user: process.env.SMTP_EMAIL,
     pass: process.env.SMTP_PASSWORD
@@ -14,15 +15,16 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Verify connection configuration
+// Verify SMTP connection
 transporter.verify((error) => {
   if (error) {
-    console.error('SMTP connection error:', error);
+    console.error('❌ SMTP connection error:', error.message || error);
   } else {
     console.log('✅ SMTP server is ready to take our messages');
   }
 });
 
+// Get color based on status
 const getStatusColor = (status) => {
   const colors = {
     'Scheduled': '#1976d2',
@@ -33,6 +35,7 @@ const getStatusColor = (status) => {
   return colors[status] || '#9e9e9e';
 };
 
+// Send notification email
 const sendStatusNotification = async (schedule, newStatus) => {
   try {
     const formattedDate = new Date(schedule.deploymentDate).toLocaleString('en-US', {
@@ -48,7 +51,7 @@ const sendStatusNotification = async (schedule, newStatus) => {
     const statusColor = getStatusColor(newStatus);
 
     const mailOptions = {
-      from: `Deployment Schedule <${process.env.FROM_EMAIL}>`,
+      from: `Deployment Schedule <${process.env.FROM_EMAIL || process.env.SMTP_EMAIL}>`,
       to: schedule.developers.join(','),
       subject: `[Deployment Update] ${schedule.appName} - Status: ${newStatus}`,
       html: `
@@ -69,14 +72,14 @@ const sendStatusNotification = async (schedule, newStatus) => {
                 <p style="margin: 0;"><strong>Failure Reason:</strong> ${schedule.failureReason}</p>
               ` : ''}
             </div>
-            
+
             <div style="margin-bottom: 15px;">
               <h3 style="margin: 0 0 5px 0; color: #333;">Assigned Developers</h3>
               <ul style="margin: 0; padding-left: 20px;">
                 ${schedule.developers.map(dev => `<li>${dev}</li>`).join('')}
               </ul>
             </div>
-            
+
             ${schedule.notes ? `
             <div style="margin-bottom: 15px;">
               <h3 style="margin: 0 0 5px 0; color: #333;">Additional Notes</h3>
@@ -92,10 +95,10 @@ const sendStatusNotification = async (schedule, newStatus) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Message sent: %s', info.messageId);
+    console.log('📧 Email sent:', info.messageId);
     return info;
   } catch (err) {
-    console.error('Email sending error:', err);
+    console.error('❌ Email sending error:', err.message || err);
     throw new ErrorResponse('Failed to send status notifications', 500);
   }
 };

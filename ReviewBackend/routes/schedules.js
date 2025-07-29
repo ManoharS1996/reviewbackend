@@ -48,11 +48,11 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// PATCH update schedule status
+// PATCH update schedule
 router.patch('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, failureReason } = req.body;
+    const { status, failureReason, ...updateData } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(new ErrorResponse('Invalid schedule ID', 400));
@@ -63,17 +63,25 @@ router.patch('/:id', async (req, res, next) => {
       return next(new ErrorResponse('Schedule not found', 404));
     }
 
-    const originalStatus = schedule.status;
-    schedule.status = status || originalStatus;
-    
-    if (status === 'Failed') {
-      schedule.failureReason = failureReason;
+    // Update all fields except status which has its own flow
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        schedule[key] = updateData[key];
+      }
+    });
+
+    // Handle status change separately
+    if (status && status !== schedule.status) {
+      schedule.status = status;
+      if (status === 'Failed') {
+        schedule.failureReason = failureReason;
+      }
     }
 
     const updatedSchedule = await schedule.save();
 
-    // Send notification if status changed
-    if (status && status !== originalStatus) {
+    // Send notification if status changed or developers changed
+    if (status && status !== schedule.status) {
       try {
         await sendStatusNotification(updatedSchedule, status);
         updatedSchedule.developersNotified = true;
@@ -81,6 +89,19 @@ router.patch('/:id', async (req, res, next) => {
           sentAt: new Date(),
           recipients: updatedSchedule.developers,
           status: status
+        };
+        await updatedSchedule.save();
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+      }
+    } else if (updateData.developers && JSON.stringify(updateData.developers) !== JSON.stringify(schedule.developers)) {
+      try {
+        await sendStatusNotification(updatedSchedule, updatedSchedule.status);
+        updatedSchedule.developersNotified = true;
+        updatedSchedule.notificationDetails = {
+          sentAt: new Date(),
+          recipients: updatedSchedule.developers,
+          status: updatedSchedule.status
         };
         await updatedSchedule.save();
       } catch (emailError) {
