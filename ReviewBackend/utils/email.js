@@ -48,7 +48,7 @@ const sendStatusNotification = async (schedule, newStatus) => {
     const statusColor = getStatusColor(newStatus);
 
     const mailOptions = {
-      from: `Deployment Manager <${process.env.FROM_EMAIL}>`,
+      from: `Deployment Schedule <${process.env.FROM_EMAIL}>`,
       to: schedule.developers.join(','),
       subject: `[Deployment Update] ${schedule.appName} - Status: ${newStatus}`,
       html: `
