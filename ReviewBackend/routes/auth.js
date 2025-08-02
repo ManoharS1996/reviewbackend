@@ -143,7 +143,7 @@ router.get('/logout', (req, res) => {
     .json({ success: true, message: 'Logged out successfully' });
 });
 
-// @desc    Send verification code
+// @desc    Send verification code to multiple emails
 // @route   POST /api/auth/send-verification-code
 router.post('/send-verification-code', async (req, res) => {
   const { emails } = req.body;
