@@ -4,6 +4,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const nodemailer = require('nodemailer');
+
+// Configure Nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD
+  }
+});
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -129,6 +141,71 @@ router.get('/logout', (req, res) => {
     })
     .status(200)
     .json({ success: true, message: 'Logged out successfully' });
+});
+
+// @desc    Send verification code
+// @route   POST /api/auth/send-verification-code
+router.post('/send-verification-code', async (req, res) => {
+  const { emails } = req.body;
+
+  try {
+    if (!emails || !Array.isArray(emails)) {
+      return res.status(400).json({ success: false, message: 'Invalid email list' });
+    }
+
+    // Generate a 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    try {
+      // Send email with verification code
+      await transporter.sendMail({
+        from: `Deployment System <${process.env.FROM_EMAIL || process.env.SMTP_EMAIL}>`,
+        to: emails.join(','),
+        subject: 'Your Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1976d2; color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0;">Verification Code</h1>
+            </div>
+            <div style="padding: 20px;">
+              <p>Your verification code for the deployment system is:</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <span style="
+                  display: inline-block;
+                  padding: 10px 20px;
+                  background-color: #f5f5f5;
+                  border-radius: 4px;
+                  font-size: 24px;
+                  font-weight: bold;
+                  letter-spacing: 2px;
+                ">${verificationCode}</span>
+              </div>
+              <p>This code will expire in 10 minutes.</p>
+              <p>If you didn't request this code, please ignore this email.</p>
+            </div>
+            <div style="background-color: #f5f5f5; padding: 10px; text-align: center; font-size: 0.8em; color: #666;">
+              Deployment Management System - ${new Date().getFullYear()}
+            </div>
+          </div>
+        `
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification code sent',
+        code: verificationCode
+      });
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code'
+      });
+    }
+  } catch (err) {
+    console.error('Verification error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 module.exports = router;
